@@ -254,19 +254,27 @@ npm run build
   - SQLAlchemy 2.0 + Alembic migrations setup
   - Provider-agnostic AI engine and code analyzer interfaces
   - Docker Compose infrastructure for Postgres & Redis
-- [ ] **Phase 2: GitHub Integration & Continuous Repository Sync**
+- [x] **Phase 2: Backend Intelligence Foundation**
+  - SQLAlchemy 2.x models: User, Organization, OrganizationMember, Repository, ScanJob
+  - Alembic initial schema migration with upgrade and downgrade support
+  - Organization CRUD and membership management API
+  - Repository management API with filtering (org, provider, active, private) & pagination
+  - Scan Job API with lifecycle management, progress tracking, and cancellation
+  - Completed Redis caching client and Celery background worker tasks
+  - Comprehensive unit and API integration tests (22 tests passing)
+- [ ] **Phase 3: GitHub Integration & Continuous Repository Sync**
   - GitHub App & OAuth integration
   - Webhook handlers for push, commit, and PR events
   - Celery background worker pipeline for cloning and caching repos
-- [ ] **Phase 3: Code Intelligence & Static Analysis Engine**
+- [ ] **Phase 4: Code Intelligence & Static Analysis Engine**
   - Tree-sitter / AST parsing for Python, TypeScript, Go, Rust
   - Complexity metrics (cyclomatic & cognitive)
   - Dead code, dependency drift, and code smell identification
-- [ ] **Phase 4: Security Vulnerability Engine**
+- [ ] **Phase 5: Security Vulnerability Engine**
   - OWASP Top 10 rule engine
   - Secret scanning (entropy analysis & regex patterns)
   - Dependency CVE cross-referencing
-- [ ] **Phase 5: Interactive Architecture & AI Co-Pilot**
+- [ ] **Phase 6: Interactive Architecture & AI Co-Pilot**
   - Dependency graph visualization with zoomable canvas
   - Google Gemini & OpenAI multi-turn repository chat assistant
   - Automated PR intelligence and architecture change summaries

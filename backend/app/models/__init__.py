@@ -1,9 +1,23 @@
 """Database Models Package.
 
-All domain models will be registered here for Alembic discovery and metadata tracking.
+All domain models are registered here for Alembic discovery and metadata tracking.
 """
 
 from app.database.base import Base
+from app.models.user import User
+from app.models.organization import Organization
+from app.models.organization_member import OrganizationMember, MemberRole
+from app.models.repository import Repository
+from app.models.scan_job import ScanJob, ScanJobStatus, ScanType
 
-# Export Base so Alembic env.py can import target_metadata = Base.metadata
-__all__ = ["Base"]
+__all__ = [
+    "Base",
+    "User",
+    "Organization",
+    "OrganizationMember",
+    "MemberRole",
+    "Repository",
+    "ScanJob",
+    "ScanJobStatus",
+    "ScanType",
+]

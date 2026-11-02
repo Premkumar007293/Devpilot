@@ -6,15 +6,27 @@ from sqlalchemy.orm import sessionmaker, Session
 from app.core.config import settings
 from app.core.logging import logger
 
-# Create SQLAlchemy engine with pool pre-ping to ensure active connections
-# and a fast connect_timeout so offline status is detected promptly
+
+def get_engine_args(url: str):
+    """Generate engine creation arguments appropriate for the target dialect."""
+    if url.startswith("sqlite"):
+        return {
+            "connect_args": {"check_same_thread": False},
+            "echo": False,
+        }
+    return {
+        "pool_pre_ping": True,
+        "pool_size": 10,
+        "max_overflow": 20,
+        "echo": False,
+        "connect_args": {"connect_timeout": 2},
+    }
+
+
+# Create SQLAlchemy engine with pool pre-ping
 engine = create_engine(
     settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-    echo=False,
-    connect_args={"connect_timeout": 2},
+    **get_engine_args(settings.DATABASE_URL),
 )
 
 # Session factory
@@ -35,7 +47,7 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def check_database_connection() -> Tuple[bool, Optional[str]]:
-    """Test connectivity to PostgreSQL database.
+    """Test connectivity to database.
 
     Returns:
         Tuple[bool, Optional[str]]: (is_connected, error_message_if_any)

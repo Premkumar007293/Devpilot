@@ -17,8 +17,10 @@ from app.models import Base
 # access to the values within the .ini file in use.
 config = context.config
 
-# Set sqlalchemy.url from our application settings dynamically
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Set sqlalchemy.url from our application settings dynamically if placeholder or empty
+current_url = config.get_main_option("sqlalchemy.url")
+if not current_url or "driver://user:pass" in current_url:
+    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:

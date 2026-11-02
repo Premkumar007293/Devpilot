@@ -1,6 +1,9 @@
-"""Common response schemas."""
+"""Common response and pagination schemas."""
 
+from typing import Generic, List, TypeVar
 from pydantic import BaseModel, Field
+
+T = TypeVar("T")
 
 
 class RootResponse(BaseModel):
@@ -14,3 +17,19 @@ class MessageResponse(BaseModel):
     """Generic message response."""
 
     message: str
+
+
+class PaginationParams(BaseModel):
+    """Standard pagination query parameters."""
+
+    skip: int = Field(0, ge=0, description="Records to skip for pagination")
+    limit: int = Field(20, ge=1, le=100, description="Max records to return per page")
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    """Generic wrapper for paginated collections."""
+
+    items: List[T]
+    total: int
+    skip: int
+    limit: int
