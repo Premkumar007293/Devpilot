@@ -1,0 +1,73 @@
+services:
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: ../infrastructure/docker/frontend.Dockerfile
+    container_name: devpilot-frontend-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - devpilot-network
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: ../infrastructure/docker/backend.Dockerfile
+    container_name: devpilot-backend-prod
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://devpilot:devpilot_secret@postgres:5432/devpilot_db
+      - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=production
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - devpilot-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: devpilot-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-devpilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpilot_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-devpilot_db}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-devpilot} -d ${POSTGRES_DB:-devpilot_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devpilot-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: devpilot-redis-prod
+    restart: unless-stopped
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devpilot-network
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+
+networks:
+  devpilot-network:
+    driver: bridge
