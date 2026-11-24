@@ -1,7 +1,8 @@
-import React from 'react';
-import { useLocation } from 'react-router-dom';
-import { Search, Bell, ChevronRight, Github, Command } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Search, Bell, ChevronRight, Github, Command, CheckCircle2 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
+import { openGitHubConnectFlow, apiService, GitHubStatus } from '../../services/api';
 
 const ROUTE_LABELS: Record<string, string> = {
   '/': 'Overview',
@@ -15,7 +16,27 @@ const ROUTE_LABELS: Record<string, string> = {
 
 export const TopNav: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { setSearchModalOpen, notificationsCount } = useAppStore();
+  const [githubStatus, setGithubStatus] = useState<GitHubStatus>({
+    connected: false,
+    user: null,
+    repository_count: 0,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    apiService.getGitHubStatus().then((status) => {
+      if (isMounted) {
+        setGithubStatus(status);
+      }
+    }).catch(() => {
+      // Unauthenticated or offline
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [location.pathname]);
 
   const currentTitle = ROUTE_LABELS[location.pathname] || 'Workspace';
 
@@ -47,17 +68,33 @@ export const TopNav: React.FC = () => {
           </div>
         </button>
 
-        {/* GitHub Shortcut */}
-        <button
-          onClick={() => {
-            alert('GitHub OAuth Integration is scheduled for Phase 2 implementation.');
-          }}
-          title="Connect GitHub Account"
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white rounded-lg bg-dark-850 border border-white/[0.08] hover:border-white/20 transition-all"
-        >
-          <Github className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Connect</span>
-        </button>
+        {/* GitHub Status / Connect Shortcut */}
+        {githubStatus.connected && githubStatus.user ? (
+          <button
+            onClick={() => navigate('/repositories')}
+            title={`Connected to GitHub as @${githubStatus.user.login}`}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-emerald-300 hover:text-emerald-200 rounded-lg bg-emerald-500/10 border border-emerald-500/25 transition-all"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">@{githubStatus.user.login}</span>
+          </button>
+        ) : (
+          <button
+            onClick={async () => {
+              try {
+                await openGitHubConnectFlow();
+              } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : 'GitHub connection could not be started.';
+                window.alert(msg);
+              }
+            }}
+            title="Connect GitHub Account"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white rounded-lg bg-dark-850 border border-white/[0.08] hover:border-white/20 transition-all"
+          >
+            <Github className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Connect</span>
+          </button>
+        )}
 
         {/* Notifications Icon with Badge */}
         <button
@@ -74,15 +111,31 @@ export const TopNav: React.FC = () => {
           )}
         </button>
 
-        {/* User Profile Placeholder */}
+        {/* User Profile */}
         <div className="flex items-center gap-2 pl-2 border-l border-white/[0.08]">
-          <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-brand-600 to-brand-accent text-white font-semibold text-xs border border-white/20 shadow-glow-sm">
-            <span>DA</span>
-            <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-dark-900" />
-          </div>
+          {githubStatus.connected && githubStatus.user?.avatar_url ? (
+            <img
+              src={githubStatus.user.avatar_url}
+              alt={githubStatus.user.login}
+              className="w-8 h-8 rounded-full border border-emerald-500/40 object-cover shadow-glow-sm"
+            />
+          ) : (
+            <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-brand-600 to-brand-accent text-white font-semibold text-xs border border-white/20 shadow-glow-sm">
+              <span>DA</span>
+              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-dark-900" />
+            </div>
+          )}
           <div className="hidden lg:flex flex-col text-left">
-            <span className="text-xs font-semibold text-slate-200 leading-none">Dev Architect</span>
-            <span className="text-[10px] text-brand-300 font-mono mt-0.5">Enterprise Tier</span>
+            <span className="text-xs font-semibold text-slate-200 leading-none">
+              {githubStatus.connected && githubStatus.user
+                ? githubStatus.user.name || githubStatus.user.login
+                : 'Dev Architect'}
+            </span>
+            <span className="text-[10px] text-brand-300 font-mono mt-0.5">
+              {githubStatus.connected && githubStatus.user
+                ? `@${githubStatus.user.login}`
+                : 'Enterprise Tier'}
+            </span>
           </div>
         </div>
       </div>

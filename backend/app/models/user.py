@@ -41,6 +41,16 @@ class User(Base, TimestampMixin):
         String(1024),
         nullable=True,
     )
+    github_id: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        unique=True,
+        index=True,
+        nullable=True,
+    )
+    github_access_token: Mapped[Optional[str]] = mapped_column(
+        String(512),
+        nullable=True,
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,

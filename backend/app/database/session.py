@@ -1,10 +1,21 @@
 """Database engine creation, session factory, and connection verification."""
 
+from pathlib import Path
 from typing import Generator, Tuple, Optional
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, event
 from sqlalchemy.orm import sessionmaker, Session
 from app.core.config import settings
 from app.core.logging import logger
+
+
+def resolve_database_url(url: str) -> str:
+    """Resolve database URL, converting relative SQLite paths to absolute backend paths."""
+    if url.startswith("sqlite:///") and not url.startswith("sqlite:////") and ":memory:" not in url:
+        rel_path = url[len("sqlite:///"):]
+        backend_dir = Path(__file__).resolve().parent.parent.parent
+        abs_path = (backend_dir / rel_path).resolve()
+        return f"sqlite:///{abs_path.as_posix()}"
+    return url
 
 
 def get_engine_args(url: str):
@@ -23,11 +34,20 @@ def get_engine_args(url: str):
     }
 
 
-# Create SQLAlchemy engine with pool pre-ping
+# Create SQLAlchemy engine with dialect-appropriate options
+resolved_db_url = resolve_database_url(settings.DATABASE_URL)
 engine = create_engine(
-    settings.DATABASE_URL,
-    **get_engine_args(settings.DATABASE_URL),
+    resolved_db_url,
+    **get_engine_args(resolved_db_url),
 )
+
+# Enable foreign key constraint enforcement in SQLite
+if resolved_db_url.startswith("sqlite"):
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 # Session factory
 SessionLocal = sessionmaker(

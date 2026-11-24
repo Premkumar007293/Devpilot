@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from app.api.v1.router import api_router
+from app.core.callback_bridge import start_callback_bridge, stop_callback_bridge
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import logger
@@ -20,7 +21,9 @@ async def lifespan(app: FastAPI):
     """Application lifespan context manager for startup and shutdown hooks."""
     logger.info("Initializing %s v%s in %s environment...", settings.APP_NAME, settings.APP_VERSION, settings.ENVIRONMENT)
     logger.info("Configured CORS Origins: %s", settings.CORS_ORIGINS)
+    start_callback_bridge()
     yield
+    stop_callback_bridge()
     logger.info("Shutting down %s...", settings.APP_NAME)
 
 
@@ -40,6 +43,7 @@ def create_application() -> FastAPI:
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
+        allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):\d+",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

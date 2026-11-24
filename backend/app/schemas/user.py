@@ -24,6 +24,7 @@ class UserResponse(UserBase):
     """Public user response schema."""
 
     id: uuid.UUID
+    github_id: Optional[str] = None
     is_active: bool
     created_at: datetime
     updated_at: datetime

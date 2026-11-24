@@ -48,3 +48,61 @@ def test_cors_headers(client: TestClient):
     )
     assert response.status_code == 200
     assert response.headers.get("access-control-allow-origin") == "http://localhost:5173"
+
+
+def test_github_client_uses_bearer_auth_header():
+    """GitHub requests must send a real bearer token instead of a placeholder."""
+    from app.integrations.github.client import GitHubClient
+
+    client = GitHubClient(token="ghp_example_token")
+    headers = client._get_headers()
+
+    assert headers["Authorization"] == "Bearer ghp_example_token"
+
+
+def test_auth_and_github_routes_are_exposed(client: TestClient):
+    """Authentication and GitHub integration endpoints must be mounted under /api/v1."""
+    github_url = client.get("/api/v1/auth/github")
+    assert github_url.status_code in (200, 503)
+
+    protected = client.get("/api/v1/github/repositories")
+    assert protected.status_code == 401
+
+
+def test_github_webhook_signature_validation(client: TestClient, monkeypatch):
+    """GitHub webhooks must verify HMAC signatures and prevent duplicate delivery processing."""
+    import hashlib
+    import hmac
+    import json
+
+    payload = json.dumps({"ref": "refs/heads/main"}).encode("utf-8")
+    secret = "webhook-secret"
+    from app.core import config as config_module
+
+    monkeypatch.setattr(config_module.settings, "GITHUB_WEBHOOK_SECRET", secret)
+    signature = "sha256=" + hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
+
+    response = client.post(
+        "/api/v1/github/webhook",
+        content=payload,
+        headers={
+            "X-Hub-Signature-256": signature,
+            "X-GitHub-Event": "push",
+            "X-GitHub-Delivery": "delivery-123",
+        },
+    )
+    assert response.status_code == 202
+    assert response.json()["status"] == "accepted"
+
+    duplicate = client.post(
+        "/api/v1/github/webhook",
+        content=payload,
+        headers={
+            "X-Hub-Signature-256": signature,
+            "X-GitHub-Event": "push",
+            "X-GitHub-Delivery": "delivery-123",
+        },
+    )
+    assert duplicate.status_code == 202
+    assert duplicate.json()["status"] == "duplicate"
+

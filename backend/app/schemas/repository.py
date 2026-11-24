@@ -43,8 +43,15 @@ class RepositoryResponse(RepositoryBase):
 
     id: uuid.UUID
     organization_id: uuid.UUID
+    owner_user_id: Optional[uuid.UUID] = None
     full_name: str
+    language: Optional[str] = "Other"
+    stars_count: int = 0
     last_scanned_at: Optional[datetime] = None
+    last_ingested_at: Optional[datetime] = None
+    ingestion_status: str = "NOT_INGESTED"
+    file_count: int = 0
+    source_file_count: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -59,3 +66,68 @@ class RepositoryFilter(BaseModel):
     is_active: Optional[bool] = None
     is_private: Optional[bool] = None
     search: Optional[str] = None
+
+
+class RepositoryConnectRequest(BaseModel):
+    """Payload to connect an accessible GitHub repository."""
+    github_repo_id: int = Field(..., description="GitHub external repository ID")
+    organization_id: Optional[uuid.UUID] = Field(None, description="Target organization UUID. Defaults to user personal org.")
+
+
+class GitHubAccessibleRepo(BaseModel):
+    """Accessible GitHub repository information."""
+    id: int
+    name: str
+    full_name: str
+    description: Optional[str] = ""
+    html_url: Optional[str] = None
+    default_branch: str = "main"
+    is_private: bool = False
+    language: Optional[str] = "Other"
+    stars_count: int = 0
+    is_connected: bool = False
+    connected_repository_id: Optional[str] = None
+
+
+class RepositoryTreeItem(BaseModel):
+    """Ingested file entry inside the repository tree."""
+    id: uuid.UUID
+    path: str
+    name: str
+    extension: str
+    size_bytes: int
+    file_type: str
+    blob_sha: Optional[str] = None
+    is_binary: bool = False
+    last_ingested_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RepositoryTreeResponse(BaseModel):
+    """Repository file tree structure."""
+    repository_id: uuid.UUID
+    branch: str
+    total_files: int
+    source_files: int
+    files: List[RepositoryTreeItem]
+
+
+class RepositoryIngestionJobResponse(BaseModel):
+    """Repository ingestion job execution summary."""
+    id: uuid.UUID
+    repository_id: uuid.UUID
+    status: str
+    branch: str
+    commit_sha: Optional[str] = None
+    total_files: int
+    source_files: int
+    ignored_files: int
+    total_bytes: int
+    progress: int
+    error_message: Optional[str] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

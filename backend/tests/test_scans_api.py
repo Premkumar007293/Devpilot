@@ -84,8 +84,35 @@ def test_scan_job_cancellation_and_filters(client: TestClient):
     assert cancel_res.status_code == 200
     assert cancel_res.json()["status"] == "CANCELLED"
 
+    # Re-canceling an already cancelled job is rejected
+    second_cancel_res = client.post(f"/api/v1/scans/{scan_id}/cancel")
+    assert second_cancel_res.status_code == 400
+
     # Filter scans by status
     filter_res = client.get(f"/api/v1/scans?repository_id={repo_id}&status=CANCELLED")
     assert filter_res.status_code == 200
     assert filter_res.json()["total"] == 1
     assert filter_res.json()["items"][0]["id"] == scan_id
+
+
+def test_scan_job_local_background_execution(client: TestClient, db_session):
+    """Verify scan job dispatches and completes via local background execution."""
+    repo_id = create_test_repository(client)
+
+    create_res = client.post(
+        "/api/v1/scans?dispatch_async=false",
+        json={"repository_id": repo_id, "scan_type": "full"},
+    )
+    assert create_res.status_code == 201
+    scan_id = create_res.json()["id"]
+
+    from app.workers.celery_app import process_scan_job
+    result = process_scan_job(scan_id, db=db_session)
+    assert result["status"] == "COMPLETED"
+    assert result["progress"] == 100
+
+    final_res = client.get(f"/api/v1/scans/{scan_id}")
+    assert final_res.status_code == 200
+    assert final_res.json()["status"] == "COMPLETED"
+    assert final_res.json()["progress"] == 100
+    assert final_res.json()["completed_at"] is not None

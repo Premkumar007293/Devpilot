@@ -21,14 +21,16 @@ class HealthService:
     def get_system_diagnostics() -> Dict[str, Any]:
         """Perform non-blocking connectivity checks against database, cache, and providers."""
         db_ok, db_err = check_database_connection()
+        is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+        engine_name = "SQLite" if is_sqlite else "PostgreSQL"
 
-        # Redis check (safe attempt)
+        # Redis check (safe non-blocking attempt)
         redis_ok = False
         redis_err = None
         try:
             import redis
-            r = redis.from_url(settings.REDIS_URL, socket_timeout=1.0)
-            redis_ok = r.ping()
+            r = redis.from_url(settings.REDIS_URL, socket_timeout=0.5)
+            redis_ok = bool(r.ping())
         except Exception as exc:
             redis_err = str(exc)
 
@@ -40,7 +42,7 @@ class HealthService:
             "database": {
                 "connected": db_ok,
                 "error": db_err,
-                "engine": "PostgreSQL",
+                "engine": engine_name,
             },
             "redis": {
                 "connected": redis_ok,

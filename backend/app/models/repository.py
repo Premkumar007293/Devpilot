@@ -3,13 +3,17 @@
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.organization import Organization
     from app.models.scan_job import ScanJob
+    from app.models.repository_file import RepositoryFile
+    from app.models.repository_ingestion_job import RepositoryIngestionJob
+    from app.models.user import User
+    from app.models.architecture_snapshot import ArchitectureSnapshot
 
 
 class Repository(Base, TimestampMixin):
@@ -21,6 +25,7 @@ class Repository(Base, TimestampMixin):
         UniqueConstraint("organization_id", "name", name="uq_org_repo_name"),
         Index("ix_repositories_org_active", "organization_id", "is_active"),
         Index("ix_repositories_provider_ext", "provider", "external_id"),
+        Index("ix_repositories_owner", "owner_user_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -32,6 +37,12 @@ class Repository(Base, TimestampMixin):
         Uuid,
         ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
+    )
+    owner_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
     name: Mapped[str] = mapped_column(
@@ -81,9 +92,37 @@ class Repository(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
+    language: Mapped[Optional[str]] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+    stars_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
     last_scanned_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+    last_ingested_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    ingestion_status: Mapped[str] = mapped_column(
+        String(32),
+        default="NOT_INGESTED",
+        nullable=False,
+    )
+    file_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+    source_file_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
     )
 
     # Relationships
@@ -91,8 +130,26 @@ class Repository(Base, TimestampMixin):
         "Organization",
         back_populates="repositories",
     )
+    owner_user: Mapped[Optional["User"]] = relationship(
+        "User",
+    )
     scan_jobs: Mapped[List["ScanJob"]] = relationship(
         "ScanJob",
+        back_populates="repository",
+        cascade="all, delete-orphan",
+    )
+    files: Mapped[List["RepositoryFile"]] = relationship(
+        "RepositoryFile",
+        back_populates="repository",
+        cascade="all, delete-orphan",
+    )
+    ingestion_jobs: Mapped[List["RepositoryIngestionJob"]] = relationship(
+        "RepositoryIngestionJob",
+        back_populates="repository",
+        cascade="all, delete-orphan",
+    )
+    architecture_snapshots: Mapped[List["ArchitectureSnapshot"]] = relationship(
+        "ArchitectureSnapshot",
         back_populates="repository",
         cascade="all, delete-orphan",
     )

@@ -11,6 +11,7 @@ from alembic import context
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.config import settings
+from app.database.session import resolve_database_url
 from app.models import Base
 
 # this is the Alembic Config object, which provides
@@ -19,8 +20,9 @@ config = context.config
 
 # Set sqlalchemy.url from our application settings dynamically if placeholder or empty
 current_url = config.get_main_option("sqlalchemy.url")
+resolved_url = resolve_database_url(settings.DATABASE_URL)
 if not current_url or "driver://user:pass" in current_url:
-    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+    config.set_main_option("sqlalchemy.url", resolved_url)
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:
@@ -38,6 +40,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_as_batch=True,
     )
 
     with context.begin_transaction():
@@ -54,7 +57,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=True,
         )
 
         with context.begin_transaction():

@@ -131,7 +131,7 @@ export const useAppStore = create<AppState>((set) => ({
   backendHealth: {
     status: 'checking',
     application: 'DevPilot',
-    version: '1.0.0',
+    version: '0.1.0-beta',
   },
   notificationsCount: 3,
   repositories: SAMPLE_REPOSITORIES,

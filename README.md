@@ -9,6 +9,19 @@
 
 DevPilot is an AI-powered software development and code intelligence platform. It enables engineering teams to deeply analyze Git repositories, evaluate AST complexity, discover security vulnerabilities (OWASP, CWE, hardcoded secrets), generate interactive architecture dependency graphs, and interact contextually with codebases via multi-model AI assistants.
 
+## Beta release status
+
+Current release: 0.1.0-beta
+
+This repository is aligned to a controlled beta release model. The application remains Docker-free, SQLite-first for local development, and compatible with PostgreSQL for beta environments. Actual public deployment and live GitHub validation still require a configured GitHub app, environment secrets, and explicit deployment approval.
+
+Key beta docs:
+- [CHANGELOG.md](CHANGELOG.md)
+- [BETA_RELEASE_NOTES.md](BETA_RELEASE_NOTES.md)
+- [RELEASE_PROCESS.md](RELEASE_PROCESS.md)
+- [docs/BETA_READINESS_REPORT.md](docs/BETA_READINESS_REPORT.md)
+- [docs/FEEDBACK_SYSTEM.md](docs/FEEDBACK_SYSTEM.md)
+
 ---
 
 ## Table of Contents
@@ -125,10 +138,12 @@ DevPilot/
 ## Installation Instructions
 
 ### Prerequisites
-- Node.js (v18+ or v20+) and npm
 - Python 3.11+
+- Node.js 18+ or 20+
+- npm
 - Git
-- Docker & Docker Compose (optional for local DB/cache)
+- Optional: PostgreSQL 16, Redis 7, and Celery for production-like local testing
+- Docker is not required for normal local development
 
 ### 1. Clone Repository
 ```powershell
@@ -136,12 +151,106 @@ git clone <repository-url> T:\PremPFS
 cd T:\PremPFS
 ```
 
-### 2. Configure Environment Variables
-Copy the template to `.env`:
+### 2. Create and Activate a Virtual Environment
+```powershell
+python -m venv backend\.venv
+.\backend\.venv\Scripts\Activate.ps1
+```
+
+### 3. Install Backend Dependencies
+```powershell
+pip install -r backend\requirements.txt
+```
+
+### 4. Configure Environment Variables
 ```powershell
 Copy-Item .env.example .env
 ```
-Adjust database or API credentials if required.
+Then edit `.env` as needed. The default configuration uses SQLite and requires no separate database server:
+
+```env
+DATABASE_URL=sqlite:///./devpilot.db
+REDIS_URL=redis://localhost:6381/0
+CELERY_BROKER_URL=redis://localhost:6381/1
+CELERY_RESULT_BACKEND=redis://localhost:6381/2
+```
+
+Set GitHub OAuth values only if you want to test GitHub login:
+
+```env
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+GITHUB_REDIRECT_URI=http://localhost:5173/auth/callback
+GITHUB_WEBHOOK_SECRET=optional-webhook-secret
+```
+
+Repository RAG is powered by the local vector store by default and remains usable without AI credentials:
+
+```env
+AI_CHAT_PROVIDER=openai
+AI_EMBEDDING_PROVIDER=local
+OPENAI_API_KEY=your_openai_key
+OPENAI_CHAT_MODEL=gpt-4o-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+GEMINI_API_KEY=your_gemini_key
+GEMINI_CHAT_MODEL=gemini-1.5-flash
+GEMINI_EMBEDDING_MODEL=text-embedding-004
+VECTOR_DB_PATH=./.devpilot_vector.db
+RAG_TOP_K=5
+RAG_SIMILARITY_THRESHOLD=0.0
+RAG_MAX_CONTEXT_CHARS=12000
+```
+
+### 5. Install Frontend Dependencies
+```powershell
+cd frontend
+npm install
+```
+
+### 6. Run Database Migrations
+```powershell
+cd ..
+cd backend
+alembic upgrade head
+```
+
+### 7. Start the Backend
+```powershell
+cd backend
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+The backend is available at `http://localhost:8000`.
+
+### 8. Start the Frontend
+```powershell
+cd ..\frontend
+npm run dev
+```
+The frontend is available at `http://localhost:5173`.
+
+### 9. Run Tests
+```powershell
+cd ..\backend
+python -m pytest tests -q
+```
+
+### 10. Optional PostgreSQL / Redis / Celery
+If you want PostgreSQL or Redis locally instead of the defaults, update `.env`:
+
+```env
+DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/devpilot
+REDIS_URL=redis://localhost:6379/0
+CELERY_BROKER_URL=redis://localhost:6379/1
+CELERY_RESULT_BACKEND=redis://localhost:6379/2
+```
+
+If Redis is unavailable, DevPilot falls back to the local thread-based executor without failing startup.
+
+---
+
+## Docker-Free Local Development
+
+This project is designed to run without Docker Desktop or any container runtime. The default SQLite configuration is suitable for local development and automatic migrations. Docker and Redis remain optional, not mandatory.
 
 ---
 
@@ -160,7 +269,8 @@ pip install -r backend\requirements.txt
 
 ### 3. Run Pytest Suite
 ```powershell
-pytest backend\tests -v
+cd backend
+python -m pytest tests -q
 ```
 
 ### 4. Start Backend Server
@@ -195,23 +305,15 @@ npm run build
 
 ## Docker Infrastructure
 
-To launch containerized PostgreSQL 16 and Redis 7:
+Docker is optional and not required for local development.
+
+If you already have Docker installed and want to run PostgreSQL or Redis in containers:
 
 ```powershell
-# Start PostgreSQL & Redis services in background
 docker compose up -d
-
-# Verify health status of containers
-docker compose ps
-
-# View container logs
-docker compose logs -f
-
-# Stop services
-docker compose down
 ```
 
-Persistent data is stored in the Docker volumes `postgres_data` and `redis_data`.
+The project still supports the same PostgreSQL and Celery configuration in `.env`, but the application does not require Docker to start or function.
 
 ---
 

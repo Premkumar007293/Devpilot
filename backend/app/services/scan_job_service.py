@@ -41,17 +41,17 @@ class ScanJobService:
         db.refresh(scan)
         logger.info("Created scan job id=%s for repository=%s", scan.id, scan.repository_id)
 
-        # Optional asynchronous dispatch if broker is available
+        # Asynchronous dispatch: Celery if Redis is available, otherwise local thread executor
         if dispatch_async:
             try:
-                from app.workers.celery_app import execute_scan_job
-                execute_scan_job.delay(str(scan.id))
                 scan.status = ScanJobStatus.QUEUED.value
                 db.commit()
                 db.refresh(scan)
-                logger.info("Dispatched scan job id=%s to Celery queue", scan.id)
+                from app.workers.dispatcher import dispatch_scan_job
+                mode = dispatch_scan_job(str(scan.id))
+                logger.info("Dispatched scan job id=%s using %s executor", scan.id, mode)
             except Exception as exc:
-                logger.debug("Asynchronous worker dispatch skipped: %s", str(exc))
+                logger.warning("Background task dispatch error: %s", str(exc))
 
         return scan
 
@@ -144,7 +144,11 @@ class ScanJobService:
     @staticmethod
     def cancel_scan_job(db: Session, scan: ScanJob) -> ScanJob:
         """Cancel an in-progress or queued scan job."""
-        if scan.status in (ScanJobStatus.COMPLETED.value, ScanJobStatus.FAILED.value):
+        if scan.status in (
+            ScanJobStatus.COMPLETED.value,
+            ScanJobStatus.FAILED.value,
+            ScanJobStatus.CANCELLED.value,
+        ):
             raise DevPilotException(
                 message=f"Cannot cancel scan job that is already '{scan.status}'.",
                 status_code=400,

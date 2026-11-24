@@ -164,6 +164,12 @@ Base URL: `/api/v1`
 - **Path**: `/api/v1/repositories/{repo_id}`
 - **Response** (`204 No Content`).
 
+#### Ask Repository Question (RAG)
+- **Method**: `POST`
+- **Path**: `/api/v1/repositories/{repo_id}/ask?question={text}`
+- **Description**: Retrieves repository file context, builds a grounded prompt, and answers using the local RAG pipeline.
+- **Response** (`200 OK`): Includes `answer`, `citations`, and `retrieval_count`.
+
 ---
 
 ### 6. Scan Job Management API
@@ -208,6 +214,52 @@ Base URL: `/api/v1`
 - **Method**: `POST`
 - **Path**: `/api/v1/scans/{scan_id}/cancel`
 - **Response** (`200 OK`): Marks status as `CANCELLED` and records `completed_at`.
+
+---
+
+## Phase 3: GitHub Authentication & Repository Integration
+
+### 7. GitHub OAuth Initialization
+- **Method**: `GET`
+- **Path**: `/api/v1/auth/github`
+- **Description**: Returns a GitHub authorization URL and a signed CSRF state token.
+- **Response** (`200 OK`):
+  ```json
+  {
+    "authorization_url": "https://github.com/login/oauth/authorize?...",
+    "state": "nonce:timestamp:signature"
+  }
+  ```
+
+### 8. OAuth Callback
+- **Method**: `POST`
+- **Path**: `/api/v1/auth/github/callback`
+- **Request Body**:
+  ```json
+  {
+    "code": "github_oauth_code",
+    "state": "nonce:timestamp:signature"
+  }
+  ```
+- **Response** (`200 OK`): JWT access token and authenticated user payload.
+
+### 9. Current User
+- **Method**: `GET`
+- **Path**: `/api/v1/auth/me`
+- **Headers**: `Authorization: Bearer <jwt>`
+- **Response** (`200 OK`): Authenticated user profile.
+
+### 10. Logout
+- **Method**: `POST`
+- **Path**: `/api/v1/auth/logout`
+- **Headers**: `Authorization: Bearer <jwt>`
+- **Response** (`200 OK`): Logout acknowledgment.
+
+### 11. Accessible GitHub Repositories
+- **Method**: `GET`
+- **Path**: `/api/v1/github/repositories`
+- **Headers**: `Authorization: Bearer <jwt>`
+- **Response** (`200 OK`): List of repositories visible to the authenticated GitHub account.
 
 ---
 

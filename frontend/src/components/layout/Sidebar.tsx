@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  Rocket,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAppStore } from '../../store/useAppStore';
@@ -27,6 +28,7 @@ interface NavItemDef {
 
 const NAV_ITEMS: NavItemDef[] = [
   { name: 'Overview', path: '/', icon: LayoutDashboard },
+  { name: 'Onboarding', path: '/onboarding', icon: Rocket },
   { name: 'Repositories', path: '/repositories', icon: GitBranch, badge: '4' },
   { name: 'Code Analysis', path: '/analysis', icon: Code2 },
   { name: 'Security', path: '/security', icon: ShieldAlert, badge: '2 Critical', badgeVariant: 'violet' },

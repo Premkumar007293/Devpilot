@@ -1,11 +1,40 @@
-import React from 'react';
-import { Database, Server } from 'lucide-react';
+import React, { useState } from 'react';
+import { Database, Server, Send } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { useAppStore } from '../store/useAppStore';
 import { StatusIndicator } from '../components/common/StatusIndicator';
+import { apiService } from '../services/api';
 
 export const SettingsPage: React.FC = () => {
   const { backendHealth } = useAppStore();
+  const [category, setCategory] = useState('bug');
+  const [description, setDescription] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [feedbackError, setFeedbackError] = useState('');
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!description.trim()) {
+      setFeedbackError('Please describe the issue or suggestion before submitting feedback.');
+      return;
+    }
+
+    const result = await apiService.submitFeedback({
+      category,
+      description: description.trim(),
+      related_resource_type: 'settings',
+      related_resource_id: 'beta-feedback',
+    });
+
+    if (!result) {
+      setFeedbackError('Feedback could not be submitted. Please sign in and try again.');
+      return;
+    }
+
+    setSubmitted(true);
+    setDescription('');
+    setFeedbackError('');
+  };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -51,11 +80,11 @@ export const SettingsPage: React.FC = () => {
           <div className="space-y-2 text-xs font-mono">
             <div className="flex justify-between p-2.5 rounded bg-dark-800 border border-white/[0.04]">
               <span className="text-slate-400">Database Engine</span>
-              <span className="text-white">PostgreSQL 16 (SQLAlchemy 2.0)</span>
+              <span className="text-white">SQLite default / PostgreSQL ready</span>
             </div>
             <div className="flex justify-between p-2.5 rounded bg-dark-800 border border-white/[0.04]">
               <span className="text-slate-400">Cache & Queue</span>
-              <span className="text-white">Redis 7 (Celery integration ready)</span>
+              <span className="text-white">Redis optional</span>
             </div>
             <div className="flex justify-between p-2.5 rounded bg-dark-800 border border-white/[0.04]">
               <span className="text-slate-400">Schema Migrations</span>
@@ -64,6 +93,56 @@ export const SettingsPage: React.FC = () => {
           </div>
         </Card>
       </div>
+
+      <Card className="p-5">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-white">Beta feedback</h3>
+          <p className="text-sm text-slate-400 mt-1">
+            Share bugs, feature requests, or analysis-quality issues during the controlled beta.
+          </p>
+        </div>
+
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div>
+            <label className="mb-2 block text-xs uppercase tracking-[0.15em] text-slate-400">Category</label>
+            <select
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-dark-900 px-3 py-2 text-sm text-white outline-none focus:border-brand-500"
+            >
+              <option value="bug">Bug report</option>
+              <option value="feature_request">Feature request</option>
+              <option value="usability">Usability feedback</option>
+              <option value="analysis_quality">Analysis quality</option>
+              <option value="general">General feedback</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-xs uppercase tracking-[0.15em] text-slate-400">Description</label>
+            <textarea
+              rows={5}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Describe the issue, what you expected, and any repository or resource involved."
+              className="w-full rounded-lg border border-white/10 bg-dark-900 px-3 py-2 text-sm text-white outline-none focus:border-brand-500 resize-none"
+            />
+          </div>
+
+          {feedbackError && <p className="text-sm text-rose-300">{feedbackError}</p>}
+          {submitted && !feedbackError && (
+            <p className="text-sm text-emerald-300">Feedback submitted. Thank you for helping improve DevPilot.</p>
+          )}
+
+          <button
+            type="submit"
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-400"
+          >
+            <Send className="w-4 h-4" />
+            Submit feedback
+          </button>
+        </form>
+      </Card>
     </div>
   );
 };
